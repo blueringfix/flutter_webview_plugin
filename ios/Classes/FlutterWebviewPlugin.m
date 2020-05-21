@@ -390,27 +390,53 @@ static NSString *const CHANNEL_NAME = @"flutter_webview_plugin";
     id data = @{@"url": navigationAction.request.URL.absoluteString,
                 @"type": isInvalid ? @"abortLoad" : @"shouldStart",
                 @"navigationType": [NSNumber numberWithInteger:navigationAction.navigationType]};
-    [channel invokeMethod:@"onState" arguments:data];
-
-    if (navigationAction.navigationType == WKNavigationTypeBackForward) {
-        [channel invokeMethod:@"onBackPressed" arguments:nil];
-    } else if (!isInvalid) {
-        id data = @{@"url": navigationAction.request.URL.absoluteString};
-        [channel invokeMethod:@"onUrlChanged" arguments:data];
-    }
-
-    if (_enableAppScheme ||
-        ([webView.URL.scheme isEqualToString:@"http"] ||
-         [webView.URL.scheme isEqualToString:@"https"] ||
-         [webView.URL.scheme isEqualToString:@"about"] ||
-         [webView.URL.scheme isEqualToString:@"file"])) {
-         if (isInvalid) {
-            decisionHandler(WKNavigationActionPolicyCancel);
-         } else {
-            decisionHandler(WKNavigationActionPolicyAllow);
-         }
+    // 对h5支付返回App做处理
+    if( [navigationAction.request.URL.absoluteString hasPrefix:@"https://wx.tenpay.com"]){
+            // relaunch with a modified request
+        NSMutableDictionary *headers = [[navigationAction.request allHTTPHeaderFields] mutableCopy];
+        
+        BOOL hasRef = [headers objectForKey:@"Referer"]!=nil;
+        if (hasRef) {
+            if([headers[@"Referer"] isEqualToString:@"traffic.zsgjapp.zsgcgj.com://"]){
+                decisionHandler(WKNavigationActionPolicyAllow);
+            }else{
+                decisionHandler(WKNavigationActionPolicyCancel);
+                headers[@"Referer"] = @"traffic.zsgjapp.zsgcgj.com://";
+                NSString *url = navigationAction.request.URL.absoluteString;
+                NSMutableDictionary *urlParams = [[self dictionaryWithUrlString:url] mutableCopy];
+                    NSMutableURLRequest *newRequest = [[NSMutableURLRequest alloc] init];
+                
+                NSString *urlStr = [NSString stringWithFormat:@"%@?prepay_id=%@&package=%@",@"https://wx.tenpay.com/cgi-bin/mmpayweb-bin/checkmweb",urlParams[@"prepay_id"],urlParams[@"package"]];
+                newRequest.allHTTPHeaderFields = headers;
+                newRequest.URL = [NSURL URLWithString:urlStr];;
+                [webView loadRequest:newRequest];
+            }
+            
+        }
+        
     } else {
-        decisionHandler(WKNavigationActionPolicyCancel);
+        [channel invokeMethod:@"onState" arguments:data];
+
+        if (navigationAction.navigationType == WKNavigationTypeBackForward) {
+            [channel invokeMethod:@"onBackPressed" arguments:nil];
+        } else if (!isInvalid) {
+            id data = @{@"url": navigationAction.request.URL.absoluteString};
+            [channel invokeMethod:@"onUrlChanged" arguments:data];
+        }
+
+        if (_enableAppScheme ||
+            ([webView.URL.scheme isEqualToString:@"http"] ||
+             [webView.URL.scheme isEqualToString:@"https"] ||
+             [webView.URL.scheme isEqualToString:@"about"] ||
+             [webView.URL.scheme isEqualToString:@"file"])) {
+             if (isInvalid) {
+                decisionHandler(WKNavigationActionPolicyCancel);
+             } else {
+                decisionHandler(WKNavigationActionPolicyAllow);
+             }
+        } else {
+            decisionHandler(WKNavigationActionPolicyCancel);
+        }
     }
 }
 

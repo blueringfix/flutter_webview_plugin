@@ -440,6 +440,34 @@ static NSString *const CHANNEL_NAME = @"flutter_webview_plugin";
     }
 }
 
+-(NSDictionary *)dictionaryWithUrlString:(NSString *)urlStr{
+    if (urlStr && urlStr.length && [urlStr rangeOfString:@"?"].length == 1) {
+        NSArray *array = [urlStr componentsSeparatedByString:@"?"];
+        if (array && array.count == 2) {
+            NSString *paramsStr = array[1];
+            if (paramsStr.length) {
+                NSMutableDictionary *paramsDict = [NSMutableDictionary dictionary];
+                NSArray *paramArray = [paramsStr componentsSeparatedByString:@"&"];
+                for (NSString *param in paramArray) {
+                    if (param && param.length) {
+                        NSArray *parArr = [param componentsSeparatedByString:@"="];
+                        if (parArr.count == 2) {
+                            [paramsDict setObject:parArr[1] forKey:parArr[0]];
+                        }
+                    }
+                }
+                return paramsDict;
+            }else{
+                return nil;
+            }
+        }else{
+            return nil;
+        }
+    }else{
+        return nil;
+    }
+}
+
 - (WKWebView *)webView:(WKWebView *)webView createWebViewWithConfiguration:(WKWebViewConfiguration *)configuration
     forNavigationAction:(WKNavigationAction *)navigationAction windowFeatures:(WKWindowFeatures *)windowFeatures {
 
